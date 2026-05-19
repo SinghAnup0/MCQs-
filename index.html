@@ -1,8 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UP GK Master Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;600;800&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #fcfcfd; }
     .bento-card { background: white; border-radius: 24px; border: 1px solid #f1f1f1; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
@@ -17,11 +20,15 @@
 <body class="p-4 md:p-6">
 
   <div id="app" class="max-w-xl mx-auto">
+    <!-- Chapter Screen Selection -->
     <div id="chapter-screen">
       <h2 class="text-xl font-extrabold mb-6">Topics</h2>
-      <div id="chapter-grid" class="space-y-3"></div>
+      <div id="chapter-grid" class="space-y-3">
+        <div class="p-5 text-center text-slate-400">Loading topics...</div>
+      </div>
     </div>
 
+    <!-- Quiz Panel Screen -->
     <div id="quiz-screen" class="hidden">
       <div class="grid grid-cols-3 gap-3 mb-6">
         <div class="bento-card p-3 text-center border-b-4 border-b-green-500">
@@ -55,20 +62,34 @@
   </div>
 
   <script>
-    let qList = []; // Array of {rowIdx, question}
-    let fullQuestions = {}; // Cache of full question data
+    // =========================================================================
+    // CRITICAL REQUIREMENT: Paste your Google Web App deployment URL here:
+    // =========================================================================
+    const API_URL = "https://script.google.com/macros/s/AKfycbyt80MtsalUceno138RsicwHPnXfJu8WRKmO4KOczTIA-oUyPfAcB4QnXUVA8Jo9zlibw/exec"; 
+
+    let qList = []; 
+    let fullQuestions = {}; 
     let curIdx = 0;
     let userAnswers = {};
     let syncComplete = false;
 
     window.onload = () => {
-      google.script.run.withSuccessHandler(list => {
-        document.getElementById('chapter-grid').innerHTML = list.map(name => `
-          <div onclick="startQuiz('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between cursor-pointer hover:border-blue-400">
-            <span class="font-bold text-sm">${name}</span><span>→</span>
-          </div>
-        `).join('');
-      }).getChapters();
+      fetch(`${API_URL}?action=getChapters`)
+        .then(response => response.json())
+        .then(list => {
+          document.getElementById('chapter-grid').innerHTML = list.map(name => `
+            <div onclick="startQuiz('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between cursor-pointer hover:border-blue-400">
+              <span class="font-bold text-sm">${name}</span><span>→</span>
+            </div>
+          `).join('');
+        })
+        .catch(err => {
+          console.error("Error loading chapters:", err);
+          document.getElementById('chapter-grid').innerHTML = `
+            <div class="p-5 text-center text-red-500 font-bold">
+              Failed to load topics. Check API configuration and CORS setup.
+            </div>`;
+        });
     };
 
     function startQuiz(name) {
@@ -76,38 +97,59 @@
       document.getElementById('chapter-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.remove('hidden');
       document.getElementById('q-text').innerText = "Connecting...";
+      document.getElementById('options-grid').innerHTML = '<div class="shimmer mb-2"></div><div class="shimmer"></div>';
+      document.getElementById('score-correct').innerText = 0;
+      document.getElementById('score-wrong').innerText = 0;
+      document.getElementById('score-total').innerText = '...';
 
-      // 1. Get the skeleton list (Very Fast)
-      google.script.run.withSuccessHandler(list => {
-        qList = list;
-        document.getElementById('score-total').innerText = qList.length;
-        loadCurrentQuestion();
+      // Step 1: Get the fast navigation skeleton list from the endpoint
+      fetch(`${API_URL}?action=getQuestionList&chapterName=${encodeURIComponent(name)}`)
+        .then(response => response.json())
+        .then(list => {
+          qList = list;
+          document.getElementById('score-total').innerText = qList.length;
+          loadCurrentQuestion();
 
-        // 2. Start background sync for all data
-        google.script.run.withSuccessHandler(allData => {
+          // Step 2: Start heavy background sync for complete chapter items
+          return fetch(`${API_URL}?action=getFullChapterData&chapterName=${encodeURIComponent(name)}`);
+        })
+        .then(response => response ? response.json() : [])
+        .then(allData => {
           allData.forEach((item, index) => { fullQuestions[index] = item; });
           syncComplete = true;
-          console.log("Background sync complete");
-        }).getFullChapterData(name);
-      }).getQuestionList(name);
+          console.log("Background sync complete via HTTP API");
+          
+          // Re-render options seamlessly if it loads in while sitting on index 0
+          if (qList[curIdx] && fullQuestions[curIdx]) {
+            renderOptions(fullQuestions[curIdx]);
+          }
+        })
+        .catch(err => console.error("Error running application logic sequence:", err));
     }
 
     function loadCurrentQuestion() {
+      if (qList.length === 0) return;
       const qSummary = qList[curIdx];
       document.getElementById('q-text').innerText = qSummary.question;
       document.getElementById('q-label').innerText = `Question ${curIdx + 1} of ${qList.length}`;
       document.getElementById('explanation-box').classList.add('hidden');
       document.getElementById('prev-btn').disabled = (curIdx === 0);
 
-      // If background sync is done, use it. Otherwise, fetch just this one.
+      // Deploy cache optimization checks
       if (syncComplete && fullQuestions[curIdx]) {
+        renderOptions(fullQuestions[curIdx]);
+      } else if (fullQuestions[curIdx]) {
         renderOptions(fullQuestions[curIdx]);
       } else {
         document.getElementById('options-grid').innerHTML = '<div class="shimmer mb-2"></div><div class="shimmer"></div>';
-        google.script.run.withSuccessHandler(details => {
-          fullQuestions[curIdx] = details; // Cache it
-          renderOptions(details);
-        }).getQuestionDetails(qSummary.rowIdx);
+        
+        fetch(`${API_URL}?action=getQuestionDetails&rowIdx=${qSummary.rowIdx}`)
+          .then(response => response.json())
+          .then(details => {
+            fullQuestions[curIdx] = details; 
+            renderOptions(details);
+          })
+          .catch(err => console.error("Error running specific component fetch:", err));
       }
     }
 
@@ -129,7 +171,11 @@
             else if (letter === userAnswers[curIdx]) div.classList.add('selected-wrong');
             showExp(data.Explanation);
           } else {
-            div.onclick = () => { userAnswers[curIdx] = letter; updateScores(); renderOptions(data); };
+            div.onclick = () => { 
+              userAnswers[curIdx] = letter; 
+              updateScores(); 
+              renderOptions(data); 
+            };
           }
           grid.appendChild(div);
         }
