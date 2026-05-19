@@ -20,15 +20,28 @@
 <body class="p-4 md:p-6">
 
   <div id="app" class="max-w-xl mx-auto">
-    <!-- Chapter Screen Selection -->
-    <div id="chapter-screen">
-      <h2 class="text-xl font-extrabold mb-6">Topics</h2>
-      <div id="chapter-grid" class="space-y-3">
-        <div class="p-5 text-center text-slate-400">Loading topics from Google Sheets...</div>
+    
+    <!-- STEP 1 SCREEN: Subject Selection -->
+    <div id="subject-screen">
+      <h2 class="text-xl font-extrabold mb-2">Select Subject</h2>
+      <p class="text-xs text-slate-400 mb-6">Choose a subject to load its topics</p>
+      <div id="subject-grid" class="space-y-3">
+        <div class="p-5 text-center text-slate-400">Scanning spreadsheet tabs...</div>
       </div>
     </div>
 
-    <!-- Quiz Panel Screen -->
+    <!-- STEP 2 SCREEN: Chapter Selection -->
+    <div id="chapter-screen" class="hidden">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <button onclick="showSubjectsScreen()" class="text-xs text-blue-500 font-bold mb-1">← Change Subject</button>
+          <h2 id="chapter-screen-title" class="text-xl font-extrabold">Topics</h2>
+        </div>
+      </div>
+      <div id="chapter-grid" class="space-y-3"></div>
+    </div>
+
+    <!-- STEP 3 SCREEN: Quiz Panel Screen -->
     <div id="quiz-screen" class="hidden">
       <div class="grid grid-cols-3 gap-3 mb-6">
         <div class="bento-card p-3 text-center border-b-4 border-b-green-500">
@@ -57,78 +70,106 @@
         <button id="prev-btn" onclick="prevQ()" class="nav-btn !bg-slate-100 !text-slate-500">← Prev</button>
         <button id="next-btn" onclick="nextQ()" class="nav-btn flex-1">Next →</button>
       </div>
-      <button onclick="goBack()" class="w-full mt-8 py-4 text-slate-400 text-[11px] font-bold uppercase border-t border-dashed">Change Topic</button>
+      <button onclick="goBackToChapters()" class="w-full mt-8 py-4 text-slate-400 text-[11px] font-bold uppercase border-t border-dashed">Change Topic</button>
     </div>
   </div>
 
   <script>
     // =========================================================================
-    // CUSTOM PATHWAY ADDRESS SETTINGS
+    // PASTE YOUR NEW DEPLOYED GOOGLE WEB APP URL HERE
     // =========================================================================
     const API_URL = "https://script.google.com/macros/s/AKfycbyt80MtsalUceno138RsicwHPnXfJu8WRKmO4KOczTIA-oUyPfAcB4QnXUVA8Jo9zlibw/exec"; 
 
+    let selectedSubject = "";
     let qList = []; 
     let fullQuestions = {}; 
     let curIdx = 0;
     let userAnswers = {};
-    let syncComplete = false;
 
     window.onload = () => {
-      fetch(`${API_URL}?action=getChapters`)
+      loadSubjects();
+    };
+
+    function loadSubjects() {
+      fetch(`${API_URL}?action=getSubjects`)
         .then(response => response.json())
-        .then(list => {
-          if(list.error) {
-            showGlobalError(list.message || list.error);
+        .then(subjects => {
+          if(subjects.error) {
+            showGlobalError(subjects.message || subjects.error);
             return;
           }
-          document.getElementById('chapter-grid').innerHTML = list.map(name => `
+          document.getElementById('subject-grid').innerHTML = subjects.map(name => `
+            <div onclick="selectSubject('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between cursor-pointer hover:border-blue-400 bg-white group">
+              <span class="font-bold text-sm text-slate-700 group-hover:text-blue-600">${name}</span>
+              <span class="text-slate-400 group-hover:text-blue-600">→</span>
+            </div>
+          `).join('');
+        })
+        .catch(err => {
+          console.error("Connection trace configuration error:", err);
+          showGlobalError("CORS Block or Endpoint offline. Please check your deployment configurations.");
+        });
+    }
+
+    function showSubjectsScreen() {
+      document.getElementById('chapter-screen').classList.add('hidden');
+      document.getElementById('subject-screen').classList.remove('hidden');
+    }
+
+    function selectSubject(subjectName) {
+      selectedSubject = subjectName;
+      document.getElementById('subject-screen').classList.add('hidden');
+      document.getElementById('chapter-screen').classList.remove('hidden');
+      document.getElementById('chapter-screen-title').innerText = `${subjectName} - Topics`;
+      document.getElementById('chapter-grid').innerHTML = '<div class="p-5 text-center text-slate-400">Loading subject topics...</div>';
+
+      fetch(`${API_URL}?action=getChapters&sheetName=${encodeURIComponent(subjectName)}`)
+        .then(response => response.json())
+        .then(chapters => {
+          document.getElementById('chapter-grid').innerHTML = chapters.map(name => `
             <div onclick="startQuiz('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between cursor-pointer hover:border-blue-400">
               <span class="font-bold text-sm">${name}</span><span>→</span>
             </div>
           `).join('');
         })
-        .catch(err => {
-          console.error("Connection error:", err);
-          showGlobalError("CORS Block or Invalid script URL config. Verify deployment parameters.");
-        });
-    };
+        .catch(err => console.error("Error retrieving custom tab contents:", err));
+    }
 
     function showGlobalError(msg) {
-      document.getElementById('chapter-grid').innerHTML = `
+      document.getElementById('subject-grid').innerHTML = `
         <div class="p-5 text-center bg-red-50 text-red-600 rounded-xl border border-red-200 text-xs text-left">
           <p class="font-bold mb-1 text-sm">Deployment Connection Failure</p>
-          <p class="font-mono">${msg}</p>
-          <p class="mt-3 text-slate-400">Fix check: Did you select "Deploy > New Deployment > Type: Web App > Execute as: Me > Access: Anyone"?</p>
+          <p class="font-mono text-[11px]">${msg}</p>
+          <p class="mt-3 text-slate-400">Make sure you created a NEW version deployment during updating your script configuration.</p>
         </div>`;
     }
 
-    function startQuiz(name) {
-      qList = []; fullQuestions = {}; userAnswers = {}; curIdx = 0; syncComplete = false;
+    function startQuiz(chapterName) {
+      qList = []; fullQuestions = {}; userAnswers = {}; curIdx = 0;
       document.getElementById('chapter-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.remove('hidden');
-      document.getElementById('q-text').innerText = "Connecting...";
+      document.getElementById('q-text').innerText = "Loading Questions...";
       document.getElementById('options-grid').innerHTML = '<div class="shimmer mb-2"></div><div class="shimmer"></div>';
       document.getElementById('score-correct').innerText = 0;
       document.getElementById('score-wrong').innerText = 0;
       document.getElementById('score-total').innerText = '...';
 
-      fetch(`${API_URL}?action=getQuestionList&chapterName=${encodeURIComponent(name)}`)
+      fetch(`${API_URL}?action=getQuestionList&sheetName=${encodeURIComponent(selectedSubject)}&chapterName=${encodeURIComponent(chapterName)}`)
         .then(response => response.json())
         .then(list => {
           qList = list;
           document.getElementById('score-total').innerText = qList.length;
           loadCurrentQuestion();
-          return fetch(`${API_URL}?action=getFullChapterData&chapterName=${encodeURIComponent(name)}`);
+          return fetch(`${API_URL}?action=getFullChapterData&sheetName=${encodeURIComponent(selectedSubject)}&chapterName=${encodeURIComponent(chapterName)}`);
         })
         .then(response => response ? response.json() : [])
         .then(allData => {
           allData.forEach((item, index) => { fullQuestions[index] = item; });
-          syncComplete = true;
           if (qList[curIdx] && fullQuestions[curIdx]) {
             renderOptions(fullQuestions[curIdx]);
           }
         })
-        .catch(err => console.error("Data trace stream error:", err));
+        .catch(err => console.error("Data stream breakdown:", err));
     }
 
     function loadCurrentQuestion() {
@@ -143,13 +184,13 @@
         renderOptions(fullQuestions[curIdx]);
       } else {
         document.getElementById('options-grid').innerHTML = '<div class="shimmer mb-2"></div><div class="shimmer"></div>';
-        fetch(`${API_URL}?action=getQuestionDetails&rowIdx=${qSummary.rowIdx}`)
+        fetch(`${API_URL}?action=getQuestionDetails&sheetName=${encodeURIComponent(selectedSubject)}&rowIdx=${qSummary.rowIdx}`)
           .then(response => response.json())
           .then(details => {
             fullQuestions[curIdx] = details; 
             renderOptions(details);
           })
-          .catch(err => console.error("Problem pulling specific items row index:", err));
+          .catch(err => console.error("Error reading entry parameters details:", err));
       }
     }
 
@@ -184,7 +225,7 @@
 
     function showExp(text) {
       const box = document.getElementById('explanation-box');
-      box.innerText = text || "No explanation.";
+      box.innerText = text || "No explanation provided.";
       box.classList.remove('hidden');
     }
 
@@ -199,7 +240,7 @@
 
     function nextQ() { if (curIdx < qList.length - 1) { curIdx++; loadCurrentQuestion(); } }
     function prevQ() { if (curIdx > 0) { curIdx--; loadCurrentQuestion(); } }
-    function goBack() { document.getElementById('quiz-screen').classList.add('hidden'); document.getElementById('chapter-screen').classList.remove('hidden'); }
+    function goBackToChapters() { document.getElementById('quiz-screen').classList.add('hidden'); document.getElementById('chapter-screen').classList.remove('hidden'); }
   </script>
 </body>
 </html>
