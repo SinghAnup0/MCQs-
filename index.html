@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;600;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #fcfcfd; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #fcfcfd; touch-action: pan-y; }
     .bento-card { background: white; border-radius: 24px; border: 1px solid #f1f1f1; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
     .option-row { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; border: 2px solid #f8f9fa; cursor: pointer; background: #f8f9fa; margin-bottom: 8px; transition: all 0.2s ease; }
     .option-row:hover { border-color: #cbd5e1; background: #f1f5f9; }
@@ -17,6 +17,19 @@
     .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
     .shimmer { height: 24px; background: #eeeeee; border-radius: 8px; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    
+    /* Optimized Compact Navigation Badges */
+    .q-circle { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; min-width: 28px; border-radius: 50%; font-size: 10px; font-weight: 800; border: 2px solid #f1f5f9; background: white; color: #64748b; cursor: pointer; transition: all 0.2s ease; user-select: none; }
+    .q-circle:hover { border-color: #cbd5e1; color: #1e293b; }
+    .q-circle-active { border-color: #0f172a !important; color: #0f172a !important; font-weight: 900; transform: scale(1.05); }
+    .q-circle-correct { background: #dcfce7 !important; border-color: #bbf7d0 !important; color: #166534 !important; }
+    .q-circle-wrong { background: #fee2e2 !important; border-color: #fecaca !important; color: #991b1b !important; }
+    
+    /* Scrollbars hiding mechanics */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scroll-scrollbar-width: none; }
+    
+    .swipe-zone { position: relative; user-select: none; }
   </style>
 </head>
 <body class="p-4 md:p-6">
@@ -46,7 +59,7 @@
 
     <!-- SCREEN 3: Interactive Quiz Panel -->
     <div id="quiz-screen" class="hidden">
-      <div class="grid grid-cols-3 gap-3 mb-6">
+      <div class="grid grid-cols-3 gap-3 mb-4">
         <div class="bento-card p-3 text-center border-b-4 border-b-green-500">
           <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Correct</p>
           <p id="score-correct" class="text-lg font-extrabold text-green-600">0</p>
@@ -61,7 +74,31 @@
         </div>
       </div>
 
-      <div class="bento-card p-6 md:p-8 mb-6">
+      <!-- Single Row Slider Container with Expand Toggle Option Menu -->
+      <div class="bento-card p-3 mb-4 bg-slate-50 relative">
+        <div class="flex items-center justify-between gap-2">
+          <!-- Horizontal Swipe Row Layer -->
+          <div id="badge-row-container" class="flex-1 overflow-x-auto no-scrollbar py-1">
+            <div id="badge-slider-row" class="flex gap-1.5 items-center">
+              <span class="text-xs text-slate-400 italic">Processing layout...</span>
+            </div>
+          </div>
+          
+          <!-- Vertical Three-Dot Toggle Options Icon Menu -->
+          <button onclick="toggleGridExpandedView()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-200 text-slate-500 text-lg font-bold transition-all focus:outline-none" title="View All Questions Matrix">
+            ⋮
+          </button>
+        </div>
+
+        <!-- Expanded Full Matrix Overlay Panel (Hidden by default) -->
+        <div id="expanded-matrix-panel" class="hidden mt-3 pt-3 border-t border-slate-200">
+          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">Expanded Grid Index</p>
+          <div id="badge-matrix-grid" class="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+
+      <!-- Quiz Card Container -->
+      <div id="quiz-card" class="bento-card p-6 md:p-8 mb-6 swipe-zone">
         <div id="exam-tag" class="text-[10px] text-blue-500 font-bold mb-1 italic tracking-wide"></div>
         <div id="q-label" class="text-[11px] font-bold text-slate-400 mb-3 tracking-wider"></div>
         <h2 id="q-text" class="text-lg font-bold leading-snug mb-8 text-slate-800"></h2>
@@ -79,7 +116,7 @@
 
   <script>
     // =========================================================================
-    // PASTE YOUR NEW DEPLOYED GOOGLE WEB APP URL HERE
+    // PASTE YOUR WORKING GOOGLE WEB APP URL HERE
     // =========================================================================
     const API_URL = "https://script.google.com/macros/s/AKfycbyt80MtsalUceno138RsicwHPnXfJu8WRKmO4KOczTIA-oUyPfAcB4QnXUVA8Jo9zlibw/exec"; 
 
@@ -89,42 +126,35 @@
     let curIdx = 0;
     let userAnswers = {};
 
+    let touchStartX = 0;
+    let touchEndX = 0;
+    let isMatrixExpanded = false;
+
     window.onload = () => {
       loadSubjects();
+      setupSwipeGestures();
     };
 
     function loadSubjects() {
-  // Adding mode: 'no-cors' forces the browser to send the request without pre-validating headers
-  fetch(`${API_URL}?action=getSubjects`, {
-    mode: 'no-cors',
-    method: 'GET'
-  })
-  .then(response => {
-    // Note: with no-cors, response.json() cannot be parsed directly because the response body is opaque.
-    // This allows you to verify if the server is reachable and responsive.
-    console.log("Network handshake confirmed. Server is accessible.");
-    
-    // Fall back to a standard fetch if handshake passes
-    return fetch(`${API_URL}?action=getSubjects`);
-  })
-  .then(response => response.json())
-  .then(subjects => {
-    if(subjects.error) {
-      showGlobalError(subjects.message || subjects.error);
-      return;
+      fetch(`${API_URL}?action=getSubjects`)
+        .then(response => response.json())
+        .then(subjects => {
+          if(subjects.error) {
+            showGlobalError(subjects.message || subjects.error);
+            return;
+          }
+          document.getElementById('subject-grid').innerHTML = subjects.map(name => `
+            <div onclick="selectSubject('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between items-center cursor-pointer hover:border-blue-400 bg-white group transition-all">
+              <span class="font-bold text-sm text-slate-700 group-hover:text-blue-600">${name}</span>
+              <span class="text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-1">→</span>
+            </div>
+          `).join('');
+        })
+        .catch(err => {
+          console.error("Connection Error Trace:", err);
+          showGlobalError("CORS Block or Endpoint offline. Check script configuration and deployment version logic.");
+        });
     }
-    document.getElementById('subject-grid').innerHTML = subjects.map(name => `
-      <div onclick="selectSubject('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between items-center cursor-pointer hover:border-blue-400 bg-white group transition-all">
-        <span class="font-bold text-sm text-slate-700 group-hover:text-blue-600">${name}</span>
-        <span class="text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-1">→</span>
-      </div>
-    `).join('');
-  })
-  .catch(err => {
-    console.error("Connection Error Trace:", err);
-    showGlobalError("CORS Block or Endpoint offline. Verify the /exec URL suffix.");
-  });
-}
 
     function showSubjectsScreen() {
       document.getElementById('chapter-screen').classList.add('hidden');
@@ -160,12 +190,13 @@
         <div class="p-5 bg-red-50 text-red-600 rounded-2xl border border-red-200 text-xs text-left">
           <p class="font-bold mb-1 text-sm">Deployment Connection Failure</p>
           <p class="font-mono bg-white p-3 rounded-xl border border-red-100 my-2 overflow-x-auto">${msg}</p>
-          <p class="mt-3 text-slate-500 leading-relaxed"><strong>How to resolve:</strong> You must create an explicit <strong>New Version</strong> within your Google Apps Script workspace under <em>Deploy > Manage deployments > Edit > Version: New Version</em>, then copy/paste the fresh Web App URL endpoint string into this html project.</p>
+          <p class="mt-3 text-slate-500 leading-relaxed"><strong>How to resolve:</strong> Make sure your spreadsheet ID is updated and that you deployed a "New Version" targeting "Anyone" access parameters inside Google Apps Script.</p>
         </div>`;
     }
 
     function startQuiz(chapterName) {
-      qList = []; fullQuestions = {}; userAnswers = {}; curIdx = 0;
+      qList = []; fullQuestions = {}; userAnswers = {}; curIdx = 0; isMatrixExpanded = false;
+      document.getElementById('expanded-matrix-panel').classList.add('hidden');
       document.getElementById('chapter-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.remove('hidden');
       document.getElementById('q-text').innerText = "Loading Questions...";
@@ -173,12 +204,15 @@
       document.getElementById('score-correct').innerText = 0;
       document.getElementById('score-wrong').innerText = 0;
       document.getElementById('score-total').innerText = '...';
+      document.getElementById('badge-slider-row').innerHTML = '<span class="text-xs text-slate-400 italic">Assembling navigation...</span>';
 
       fetch(`${API_URL}?action=getQuestionList&sheetName=${encodeURIComponent(selectedSubject)}&chapterName=${encodeURIComponent(chapterName)}`)
         .then(response => response.json())
         .then(list => {
           qList = list;
           document.getElementById('score-total').innerText = qList.length;
+          
+          renderUnifiedQuestionNavigationControls();
           loadCurrentQuestion();
           return fetch(`${API_URL}?action=getFullChapterData&sheetName=${encodeURIComponent(selectedSubject)}&chapterName=${encodeURIComponent(chapterName)}`);
         })
@@ -188,8 +222,67 @@
           if (qList[curIdx] && fullQuestions[curIdx]) {
             renderOptions(fullQuestions[curIdx]);
           }
+          renderUnifiedQuestionNavigationControls();
         })
         .catch(err => console.error("Data tracking stream failure:", err));
+    }
+
+    // Toggle showing/hiding the old multi-row grid layout on clicking '⋮'
+    function toggleGridExpandedView() {
+      const panel = document.getElementById('expanded-matrix-panel');
+      isMatrixExpanded = !isMatrixExpanded;
+      if (isMatrixExpanded) {
+        panel.classList.remove('hidden');
+      } else {
+        panel.classList.add('hidden');
+      }
+      renderUnifiedQuestionNavigationControls();
+    }
+
+    // Renders both the single-row slider and the toggle-able full grid simultaneously
+    function renderUnifiedQuestionNavigationControls() {
+      if(qList.length === 0) return;
+      
+      // 1. Generate HTML contents for circle items
+      const htmlArray = qList.map((_, idx) => {
+        let statusClass = "";
+        if (userAnswers[idx] && fullQuestions[idx]) {
+          statusClass = (userAnswers[idx] === fullQuestions[idx].Answer) ? "q-circle-correct" : "q-circle-wrong";
+        }
+        if (idx === curIdx) {
+          statusClass += " q-circle-active";
+        }
+        return `<div class="q-circle ${statusClass}" id="slider-circle-${idx}" onclick="jumpToQuestion(${idx})">${idx + 1}</div>`;
+      });
+
+      // 2. Map into Single-Row Slider
+      document.getElementById('badge-slider-row').innerHTML = htmlArray.join('');
+      
+      // 3. Map into the Expanded Matrix Grid Block (if initialized open)
+      if (isMatrixExpanded) {
+        const gridHtmlArray = qList.map((_, idx) => {
+          let statusClass = "";
+          if (userAnswers[idx] && fullQuestions[idx]) {
+            statusClass = (userAnswers[idx] === fullQuestions[idx].Answer) ? "q-circle-correct" : "q-circle-wrong";
+          }
+          if (idx === curIdx) statusClass += " q-circle-active";
+          return `<div class="q-circle ${statusClass}" onclick="jumpToQuestion(${idx})">${idx + 1}</div>`;
+        });
+        document.getElementById('badge-matrix-grid').innerHTML = gridHtmlArray.join('');
+      }
+
+      // 4. Center active slider item smoothly into focus window
+      setTimeout(() => {
+        const activeCircle = document.getElementById(`slider-circle-${curIdx}`);
+        if(activeCircle) {
+          activeCircle.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+      }, 20);
+    }
+
+    function jumpToQuestion(indexValue) {
+      curIdx = indexValue;
+      loadCurrentQuestion();
     }
 
     function loadCurrentQuestion() {
@@ -199,6 +292,8 @@
       document.getElementById('q-label').innerText = `Question ${curIdx + 1} of ${qList.length}`;
       document.getElementById('explanation-box').classList.add('hidden');
       document.getElementById('prev-btn').disabled = (curIdx === 0);
+      
+      renderUnifiedQuestionNavigationControls();
 
       if (fullQuestions[curIdx]) {
         renderOptions(fullQuestions[curIdx]);
@@ -209,9 +304,10 @@
           .then(details => {
             fullQuestions[curIdx] = details; 
             renderOptions(details);
+            renderUnifiedQuestionNavigationControls();
           })
           .catch(err => console.error("Error reading target spreadsheet index parameters:", err));
-      }
+    }
     }
 
     function renderOptions(data) {
@@ -235,7 +331,8 @@
             div.onclick = () => { 
               userAnswers[curIdx] = letter; 
               updateScores(); 
-              renderOptions(data); 
+              renderOptions(data);
+              renderUnifiedQuestionNavigationControls();
             };
           }
           grid.appendChild(div);
@@ -261,6 +358,32 @@
     function nextQ() { if (curIdx < qList.length - 1) { curIdx++; loadCurrentQuestion(); } }
     function prevQ() { if (curIdx > 0) { curIdx--; loadCurrentQuestion(); } }
     function goBackToChapters() { document.getElementById('quiz-screen').classList.add('hidden'); document.getElementById('chapter-screen').classList.remove('hidden'); }
+
+    function setupSwipeGestures() {
+      const card = document.getElementById('quiz-card');
+      
+      card.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+      }, { passive: true });
+
+      card.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipeCalculations();
+      }, { passive: true });
+    }
+
+    function handleSwipeCalculations() {
+      const swipeThreshold = 60; 
+      const difference = touchStartX - touchEndX;
+
+      if (Math.abs(difference) > swipeThreshold) {
+        if (difference > 0) {
+          nextQ();
+        } else {
+          prevQ();
+        }
+      }
+    }
   </script>
 </body>
 </html>
