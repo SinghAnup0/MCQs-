@@ -30,9 +30,31 @@
     .no-scrollbar { -ms-overflow-style: none; scroll-scrollbar-width: none; }
     
     .swipe-zone { position: relative; user-select: none; }
+
+    /* Left Drawer Sidebar Implementation styles */
+    .sidebar-overlay { background: rgba(15, 23, 42, 0.3); backdrop-filter: blur(4px); transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    .sidebar-drawer { transform: translateX(-100%); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    .sidebar-open .sidebar-drawer { transform: translateX(0); }
   </style>
 </head>
 <body class="p-4 md:p-6">
+
+  <!-- LEFT DRAWER OVERLAY WRAPPER -->
+  <div id="sidebar-root" class="fixed inset-0 z-50 pointer-events-none">
+    <div id="sidebar-overlay" onclick="closeSidebar()" class="sidebar-overlay absolute inset-0 opacity-0 pointer-events-none"></div>
+    <div class="sidebar-drawer absolute left-0 top-0 bottom-0 w-72 bg-white shadow-2xl border-r border-slate-100 flex flex-col pointer-events-auto p-5">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+        <div>
+          <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Switch Topic</h3>
+          <p id="sidebar-subject-title" class="text-sm font-bold text-slate-700 truncate max-w-[180px]">...</p>
+        </div>
+        <button onclick="closeSidebar()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+      </div>
+      <div id="sidebar-topic-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1 text-sm">
+        <span class="text-xs text-slate-400 italic">No topics active...</span>
+      </div>
+    </div>
+  </div>
 
   <div id="app" class="max-w-xl mx-auto">
     
@@ -50,27 +72,63 @@
 
     <!-- SCREEN 2: Chapter Selection Browser -->
     <div id="chapter-screen" class="hidden">
-      <div class="mb-6">
-        <button onclick="showSubjectsScreen()" class="text-xs text-blue-500 font-bold mb-1 flex items-center gap-1">← Change Subject</button>
-        <h2 id="chapter-screen-title" class="text-xl font-extrabold text-slate-800">Topics</h2>
+      <div class="mb-6 flex justify-between items-center">
+        <div>
+          <button onclick="showSubjectsScreen()" class="text-xs text-blue-500 font-bold mb-1 flex items-center gap-1">← Change Subject</button>
+          <h2 id="chapter-screen-title" class="text-xl font-extrabold text-slate-800">Topics</h2>
+        </div>
+        
+        <!-- Modernized Custom Home Shortcut Button from Chapter Selector -->
+        <button onclick="showSubjectsScreen()" class="w-11 h-11 flex flex-col items-center justify-center border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-600 focus:outline-none" title="Return Home">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-[18px] h-[18px] text-slate-600">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+          </svg>
+          <span class="text-[8px] font-extrabold tracking-wider uppercase mt-[1px] text-slate-500">Home</span>
+        </button>
       </div>
       <div id="chapter-grid" class="space-y-3"></div>
     </div>
 
     <!-- SCREEN 3: Interactive Quiz Panel -->
     <div id="quiz-screen" class="hidden">
-      <div class="grid grid-cols-3 gap-3 mb-4">
-        <div class="bento-card p-3 text-center border-b-4 border-b-green-500">
-          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Correct</p>
-          <p id="score-correct" class="text-lg font-extrabold text-green-600">0</p>
+      
+      <!-- Top Persistent Navigation Header Block with Subject & Topic details -->
+      <div class="flex items-center gap-3 mb-4">
+        <!-- Sidebar Toggle Icon Button -->
+        <button onclick="openSidebar()" class="w-11 h-11 flex flex-col items-center justify-center border border-slate-200 rounded-xl hover:bg-slate-50 transition-all gap-[4px] focus:outline-none" title="Open Chapter List Menu">
+          <span class="w-4 h-[2px] bg-slate-600 rounded-full"></span>
+          <span class="w-4 h-[2px] bg-slate-600 rounded-full"></span>
+          <span class="w-4 h-[2px] bg-slate-600 rounded-full"></span>
+        </button>
+        
+        <!-- Center Titles Container -->
+        <div class="flex-1 min-w-0">
+          <h1 id="header-subject-name" class="text-base font-extrabold text-slate-800 truncate leading-tight">Subject Title</h1>
+          <p id="header-topic-name" class="text-xs text-slate-400 font-medium truncate">Topic Parameters Sub-Header</p>
         </div>
-        <div class="bento-card p-3 text-center border-b-4 border-b-red-500">
-          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Wrong</p>
-          <p id="score-wrong" class="text-lg font-extrabold text-red-600">0</p>
+
+        <!-- Modernized Custom Home Shortcut Button (Graphic + Label Layer) -->
+        <button onclick="showSubjectsScreen()" class="w-11 h-11 flex flex-col items-center justify-center border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-600 focus:outline-none" title="Return to Home Main Page">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-[18px] h-[18px] text-slate-600">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+          </svg>
+          <span class="text-[8px] font-extrabold tracking-wider uppercase mt-[1px] text-slate-500">Home</span>
+        </button>
+      </div>
+
+      <!-- Compact Sized Scoreboard Row Layout View -->
+      <div class="grid grid-cols-3 gap-2.5 mb-3.5">
+        <div class="bento-card p-2 text-center border-b-[3px] border-b-green-500">
+          <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Correct</p>
+          <p id="score-correct" class="text-base font-extrabold text-green-600">0</p>
         </div>
-        <div class="bento-card p-3 text-center border-b-4 border-b-blue-500">
-          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
-          <p id="score-total" class="text-lg font-extrabold text-blue-600">...</p>
+        <div class="bento-card p-2 text-center border-b-[3px] border-b-red-500">
+          <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Wrong</p>
+          <p id="score-wrong" class="text-base font-extrabold text-red-600">0</p>
+        </div>
+        <div class="bento-card p-2 text-center border-b-[3px] border-b-blue-500">
+          <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
+          <p id="score-total" class="text-base font-extrabold text-blue-600">...</p>
         </div>
       </div>
 
@@ -121,6 +179,7 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbyt80MtsalUceno138RsicwHPnXfJu8WRKmO4KOczTIA-oUyPfAcB4QnXUVA8Jo9zlibw/exec"; 
 
     let selectedSubject = "";
+    let selectedChapter = "";
     let qList = []; 
     let fullQuestions = {}; 
     let curIdx = 0;
@@ -133,7 +192,103 @@
     window.onload = () => {
       loadSubjects();
       setupSwipeGestures();
+      restoreSavedSession();
     };
+
+    // --- SIDEBAR DRAWER NAVIGATION CONTROLS ---
+    function openSidebar() {
+      const root = document.getElementById('sidebar-root');
+      const overlay = document.getElementById('sidebar-overlay');
+      root.classList.add('sidebar-open');
+      overlay.classList.remove('pointer-events-none', 'opacity-0');
+      overlay.classList.add('pointer-events-auto', 'opacity-100');
+      document.getElementById('sidebar-subject-title').innerText = selectedSubject || "Active Subject";
+      
+      const listContainer = document.getElementById('sidebar-topic-list');
+      const chapters = window.cachedChapters || [];
+      if(chapters.length === 0) {
+        listContainer.innerHTML = `<span class="text-xs text-slate-400 italic">No alternative routes detected...</span>`;
+        return;
+      }
+      listContainer.innerHTML = chapters.map(name => {
+        const isCurrent = (name === selectedChapter);
+        return `
+          <div onclick="closeSidebar(); startQuiz('${name.replace(/'/g, "\\'")}')" class="p-3 rounded-xl border cursor-pointer transition-all ${isCurrent ? 'bg-slate-900 border-slate-900 text-white font-bold' : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100'}">
+            ${name}
+          </div>`;
+      }).join('');
+    }
+
+    function closeSidebar() {
+      const root = document.getElementById('sidebar-root');
+      const overlay = document.getElementById('sidebar-overlay');
+      root.classList.remove('sidebar-open');
+      overlay.classList.remove('pointer-events-auto', 'opacity-100');
+      overlay.classList.add('pointer-events-none', 'opacity-0');
+    }
+
+    // --- SESSION RETENTION SYSTEM ---
+    function saveSessionState() {
+      const state = {
+        currentScreen: getCurrentScreenName(),
+        selectedSubject,
+        selectedChapter,
+        curIdx,
+        userAnswers,
+        qList,
+        fullQuestions
+      };
+      localStorage.setItem('quiz_app_session', JSON.stringify(state));
+    }
+
+    function getCurrentScreenName() {
+      if (!document.getElementById('quiz-screen').classList.contains('hidden')) return 'quiz';
+      if (!document.getElementById('chapter-screen').classList.contains('hidden')) return 'chapter';
+      return 'subject';
+    }
+
+    function restoreSavedSession() {
+      const rawData = localStorage.getItem('quiz_app_session');
+      if (!rawData) return;
+      try {
+        const state = JSON.parse(rawData);
+        if (!state) return;
+
+        if (state.selectedSubject) selectedSubject = state.selectedSubject;
+        if (state.selectedChapter) selectedChapter = state.selectedChapter;
+        if (state.qList) qList = state.qList;
+        if (state.fullQuestions) fullQuestions = state.fullQuestions;
+        if (state.userAnswers) userAnswers = state.userAnswers;
+        if (state.curIdx !== undefined) curIdx = state.curIdx;
+
+        const rawChapters = localStorage.getItem(`ch_cache_${selectedSubject}`);
+        if(rawChapters) window.cachedChapters = JSON.parse(rawChapters);
+
+        if (state.currentScreen === 'chapter' && selectedSubject) {
+          selectSubject(selectedSubject, true);
+        } else if (state.currentScreen === 'quiz' && selectedSubject && selectedChapter) {
+          document.getElementById('subject-screen').classList.add('hidden');
+          document.getElementById('quiz-screen').classList.remove('hidden');
+          document.getElementById('header-subject-name').innerText = selectedSubject;
+          document.getElementById('header-topic-name').innerText = selectedChapter;
+          document.getElementById('score-total').innerText = qList.length;
+          updateScores();
+          loadCurrentQuestion();
+        }
+      } catch (e) {
+        console.error("Failed to re-parse cached local storage structure", e);
+        localStorage.removeItem('quiz_app_session');
+      }
+    }
+
+    function clearSessionCache() {
+      localStorage.removeItem('quiz_app_session');
+      userAnswers = {};
+      fullQuestions = {};
+      qList = [];
+      curIdx = 0;
+    }
+    // ---------------------------------
 
     function loadSubjects() {
       fetch(`${API_URL}?action=getSubjects`)
@@ -144,7 +299,7 @@
             return;
           }
           document.getElementById('subject-grid').innerHTML = subjects.map(name => `
-            <div onclick="selectSubject('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between items-center cursor-pointer hover:border-blue-400 bg-white group transition-all">
+            <div onclick="clearSessionCache(); selectSubject('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between items-center cursor-pointer hover:border-blue-400 bg-white group transition-all">
               <span class="font-bold text-sm text-slate-700 group-hover:text-blue-600">${name}</span>
               <span class="text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-1">→</span>
             </div>
@@ -157,32 +312,49 @@
     }
 
     function showSubjectsScreen() {
+      clearSessionCache();
+      document.getElementById('quiz-screen').classList.add('hidden');
       document.getElementById('chapter-screen').classList.add('hidden');
       document.getElementById('subject-screen').classList.remove('hidden');
+      saveSessionState();
     }
 
-    function selectSubject(subjectName) {
+    function selectSubject(subjectName, isRestoring = false) {
       selectedSubject = subjectName;
       document.getElementById('subject-screen').classList.add('hidden');
+      document.getElementById('quiz-screen').classList.add('hidden');
       document.getElementById('chapter-screen').classList.remove('hidden');
       document.getElementById('chapter-screen-title').innerText = `${subjectName} - Topics`;
-      document.getElementById('chapter-grid').innerHTML = '<div class="space-y-2"><div class="shimmer h-14 w-full"></div><div class="shimmer h-14 w-full"></div></div>';
+      
+      saveSessionState();
+      if (isRestoring) {
+        renderChaptersUIFromCache();
+        return;
+      }
 
+      document.getElementById('chapter-grid').innerHTML = '<div class="space-y-2"><div class="shimmer h-14 w-full"></div><div class="shimmer h-14 w-full"></div></div>';
       fetch(`${API_URL}?action=getChapters&sheetName=${encodeURIComponent(subjectName)}`)
         .then(response => response.json())
         .then(chapters => {
-          if (chapters.length === 0) {
-            document.getElementById('chapter-grid').innerHTML = '<div class="p-5 text-center text-slate-400 text-xs">No topics found inside this sheet tab.</div>';
-            return;
-          }
-          document.getElementById('chapter-grid').innerHTML = chapters.map(name => `
-            <div onclick="startQuiz('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between items-center cursor-pointer hover:border-blue-400 bg-white group transition-all">
-              <span class="font-bold text-sm text-slate-700 group-hover:text-blue-600">${name}</span>
-              <span class="text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-1">→</span>
-            </div>
-          `).join('');
+          window.cachedChapters = chapters;
+          localStorage.setItem(`ch_cache_${subjectName}`, JSON.stringify(chapters));
+          renderChaptersUIFromCache();
         })
         .catch(err => console.error("Error retrieving tab headers:", err));
+    }
+
+    function renderChaptersUIFromCache() {
+      const chapters = window.cachedChapters || [];
+      if (chapters.length === 0) {
+        document.getElementById('chapter-grid').innerHTML = '<div class="p-5 text-center text-slate-400 text-xs">No topics found inside this sheet tab.</div>';
+        return;
+      }
+      document.getElementById('chapter-grid').innerHTML = chapters.map(name => `
+        <div onclick="startQuiz('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between items-center cursor-pointer hover:border-blue-400 bg-white group transition-all">
+          <span class="font-bold text-sm text-slate-700 group-hover:text-blue-600">${name}</span>
+          <span class="text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-1">→</span>
+        </div>
+      `).join('');
     }
 
     function showGlobalError(msg) {
@@ -195,16 +367,23 @@
     }
 
     function startQuiz(chapterName) {
+      selectedChapter = chapterName;
       qList = []; fullQuestions = {}; userAnswers = {}; curIdx = 0; isMatrixExpanded = false;
       document.getElementById('expanded-matrix-panel').classList.add('hidden');
       document.getElementById('chapter-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.remove('hidden');
+      
+      document.getElementById('header-subject-name').innerText = selectedSubject;
+      document.getElementById('header-topic-name').innerText = selectedChapter;
+
       document.getElementById('q-text').innerText = "Loading Questions...";
       document.getElementById('options-grid').innerHTML = '<div class="shimmer h-12 mb-2 w-full"></div><div class="shimmer h-12 w-full"></div>';
       document.getElementById('score-correct').innerText = 0;
       document.getElementById('score-wrong').innerText = 0;
       document.getElementById('score-total').innerText = '...';
       document.getElementById('badge-slider-row').innerHTML = '<span class="text-xs text-slate-400 italic">Assembling navigation...</span>';
+
+      saveSessionState();
 
       fetch(`${API_URL}?action=getQuestionList&sheetName=${encodeURIComponent(selectedSubject)}&chapterName=${encodeURIComponent(chapterName)}`)
         .then(response => response.json())
@@ -223,11 +402,11 @@
             renderOptions(fullQuestions[curIdx]);
           }
           renderUnifiedQuestionNavigationControls();
+          saveSessionState();
         })
         .catch(err => console.error("Data tracking stream failure:", err));
     }
 
-    // Toggle showing/hiding the old multi-row grid layout on clicking '⋮'
     function toggleGridExpandedView() {
       const panel = document.getElementById('expanded-matrix-panel');
       isMatrixExpanded = !isMatrixExpanded;
@@ -239,26 +418,20 @@
       renderUnifiedQuestionNavigationControls();
     }
 
-    // Renders both the single-row slider and the toggle-able full grid simultaneously
     function renderUnifiedQuestionNavigationControls() {
       if(qList.length === 0) return;
       
-      // 1. Generate HTML contents for circle items
       const htmlArray = qList.map((_, idx) => {
         let statusClass = "";
         if (userAnswers[idx] && fullQuestions[idx]) {
           statusClass = (userAnswers[idx] === fullQuestions[idx].Answer) ? "q-circle-correct" : "q-circle-wrong";
         }
-        if (idx === curIdx) {
-          statusClass += " q-circle-active";
-        }
+        if (idx === curIdx) statusClass += " q-circle-active";
         return `<div class="q-circle ${statusClass}" id="slider-circle-${idx}" onclick="jumpToQuestion(${idx})">${idx + 1}</div>`;
       });
 
-      // 2. Map into Single-Row Slider
       document.getElementById('badge-slider-row').innerHTML = htmlArray.join('');
       
-      // 3. Map into the Expanded Matrix Grid Block (if initialized open)
       if (isMatrixExpanded) {
         const gridHtmlArray = qList.map((_, idx) => {
           let statusClass = "";
@@ -271,7 +444,6 @@
         document.getElementById('badge-matrix-grid').innerHTML = gridHtmlArray.join('');
       }
 
-      // 4. Center active slider item smoothly into focus window
       setTimeout(() => {
         const activeCircle = document.getElementById(`slider-circle-${curIdx}`);
         if(activeCircle) {
@@ -294,6 +466,7 @@
       document.getElementById('prev-btn').disabled = (curIdx === 0);
       
       renderUnifiedQuestionNavigationControls();
+      saveSessionState();
 
       if (fullQuestions[curIdx]) {
         renderOptions(fullQuestions[curIdx]);
@@ -305,9 +478,10 @@
             fullQuestions[curIdx] = details; 
             renderOptions(details);
             renderUnifiedQuestionNavigationControls();
+            saveSessionState();
           })
           .catch(err => console.error("Error reading target spreadsheet index parameters:", err));
-    }
+      }
     }
 
     function renderOptions(data) {
@@ -333,6 +507,7 @@
               updateScores(); 
               renderOptions(data);
               renderUnifiedQuestionNavigationControls();
+              saveSessionState();
             };
           }
           grid.appendChild(div);
@@ -357,31 +532,24 @@
 
     function nextQ() { if (curIdx < qList.length - 1) { curIdx++; loadCurrentQuestion(); } }
     function prevQ() { if (curIdx > 0) { curIdx--; loadCurrentQuestion(); } }
-    function goBackToChapters() { document.getElementById('quiz-screen').classList.add('hidden'); document.getElementById('chapter-screen').classList.remove('hidden'); }
+    
+    function goBackToChapters() { 
+      document.getElementById('quiz-screen').classList.add('hidden'); 
+      document.getElementById('chapter-screen').classList.remove('hidden'); 
+      saveSessionState();
+    }
 
     function setupSwipeGestures() {
       const card = document.getElementById('quiz-card');
-      
-      card.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].screenX;
-      }, { passive: true });
-
-      card.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        handleSwipeCalculations();
-      }, { passive: true });
+      card.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
+      card.addEventListener('touchend', (e) => { touchEndX = e.changedTouches[0].screenX; handleSwipeCalculations(); }, { passive: true });
     }
 
     function handleSwipeCalculations() {
       const swipeThreshold = 60; 
       const difference = touchStartX - touchEndX;
-
       if (Math.abs(difference) > swipeThreshold) {
-        if (difference > 0) {
-          nextQ();
-        } else {
-          prevQ();
-        }
+        if (difference > 0) nextQ(); else prevQ();
       }
     }
   </script>
