@@ -9,68 +9,71 @@
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #fcfcfd; }
     .bento-card { background: white; border-radius: 24px; border: 1px solid #f1f1f1; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-    .option-row { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; border: 2px solid #f8f9fa; cursor: pointer; background: #f8f9fa; margin-bottom: 8px; }
+    .option-row { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; border: 2px solid #f8f9fa; cursor: pointer; background: #f8f9fa; margin-bottom: 8px; transition: all 0.2s ease; }
+    .option-row:hover { border-color: #cbd5e1; background: #f1f5f9; }
     .selected-correct { border-color: #22c55e !important; background: #f0fdf4 !important; pointer-events: none; }
     .selected-wrong { border-color: #ef4444 !important; background: #fef2f2 !important; pointer-events: none; }
-    .nav-btn { background: #1a1a1a; color: white; padding: 12px 20px; border-radius: 12px; font-weight: 700; }
-    .shimmer { height: 20px; background: #f2f2f2; border-radius: 4px; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .nav-btn { background: #1a1a1a; color: white; padding: 12px 20px; border-radius: 12px; font-weight: 700; transition: opacity 0.2s; }
+    .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .shimmer { height: 24px; background: #eeeeee; border-radius: 8px; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
   </style>
 </head>
 <body class="p-4 md:p-6">
 
   <div id="app" class="max-w-xl mx-auto">
     
-    <!-- STEP 1 SCREEN: Subject Selection -->
+    <!-- SCREEN 1: Subject Selection Browser -->
     <div id="subject-screen">
-      <h2 class="text-xl font-extrabold mb-2">Select Subject</h2>
-      <p class="text-xs text-slate-400 mb-6">Choose a subject to load its topics</p>
+      <h2 class="text-xl font-extrabold mb-2 text-slate-800">Select Subject</h2>
+      <p class="text-xs text-slate-400 mb-6">Choose a subject worksheet tab to begin</p>
       <div id="subject-grid" class="space-y-3">
-        <div class="p-5 text-center text-slate-400">Scanning spreadsheet tabs...</div>
+        <div class="space-y-2">
+          <div class="shimmer h-16 w-full"></div>
+          <div class="shimmer h-16 w-full"></div>
+        </div>
       </div>
     </div>
 
-    <!-- STEP 2 SCREEN: Chapter Selection -->
+    <!-- SCREEN 2: Chapter Selection Browser -->
     <div id="chapter-screen" class="hidden">
-      <div class="flex items-center justify-between mb-6">
-        <div>
-          <button onclick="showSubjectsScreen()" class="text-xs text-blue-500 font-bold mb-1">← Change Subject</button>
-          <h2 id="chapter-screen-title" class="text-xl font-extrabold">Topics</h2>
-        </div>
+      <div class="mb-6">
+        <button onclick="showSubjectsScreen()" class="text-xs text-blue-500 font-bold mb-1 flex items-center gap-1">← Change Subject</button>
+        <h2 id="chapter-screen-title" class="text-xl font-extrabold text-slate-800">Topics</h2>
       </div>
       <div id="chapter-grid" class="space-y-3"></div>
     </div>
 
-    <!-- STEP 3 SCREEN: Quiz Panel Screen -->
+    <!-- SCREEN 3: Interactive Quiz Panel -->
     <div id="quiz-screen" class="hidden">
       <div class="grid grid-cols-3 gap-3 mb-6">
         <div class="bento-card p-3 text-center border-b-4 border-b-green-500">
-          <p class="text-[9px] font-bold text-slate-400">CORRECT</p>
+          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Correct</p>
           <p id="score-correct" class="text-lg font-extrabold text-green-600">0</p>
         </div>
         <div class="bento-card p-3 text-center border-b-4 border-b-red-500">
-          <p class="text-[9px] font-bold text-slate-400">WRONG</p>
+          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Wrong</p>
           <p id="score-wrong" class="text-lg font-extrabold text-red-600">0</p>
         </div>
         <div class="bento-card p-3 text-center border-b-4 border-b-blue-500">
-          <p class="text-[9px] font-bold text-slate-400">TOTAL</p>
+          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
           <p id="score-total" class="text-lg font-extrabold text-blue-600">...</p>
         </div>
       </div>
 
       <div class="bento-card p-6 md:p-8 mb-6">
-        <div id="exam-tag" class="text-[10px] text-blue-500 font-bold mb-1 italic"></div>
-        <div id="q-label" class="text-[11px] font-bold text-slate-400 mb-3"></div>
+        <div id="exam-tag" class="text-[10px] text-blue-500 font-bold mb-1 italic tracking-wide"></div>
+        <div id="q-label" class="text-[11px] font-bold text-slate-400 mb-3 tracking-wider"></div>
         <h2 id="q-text" class="text-lg font-bold leading-snug mb-8 text-slate-800"></h2>
         <div id="options-grid"></div>
-        <div id="explanation-box" class="hidden mt-6 p-5 bg-blue-50 rounded-2xl border border-blue-100 text-xs text-slate-600"></div>
+        <div id="explanation-box" class="hidden mt-6 p-5 bg-blue-50 rounded-2xl border border-blue-100 text-xs text-slate-600 leading-relaxed"></div>
       </div>
 
       <div class="flex justify-between gap-3">
         <button id="prev-btn" onclick="prevQ()" class="nav-btn !bg-slate-100 !text-slate-500">← Prev</button>
         <button id="next-btn" onclick="nextQ()" class="nav-btn flex-1">Next →</button>
       </div>
-      <button onclick="goBackToChapters()" class="w-full mt-8 py-4 text-slate-400 text-[11px] font-bold uppercase border-t border-dashed">Change Topic</button>
+      <button onclick="goBackToChapters()" class="w-full mt-8 py-4 text-slate-400 text-[11px] font-bold uppercase tracking-widest border-t border-dashed border-slate-200 hover:text-slate-600">Back to Topics</button>
     </div>
   </div>
 
@@ -99,15 +102,15 @@
             return;
           }
           document.getElementById('subject-grid').innerHTML = subjects.map(name => `
-            <div onclick="selectSubject('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between cursor-pointer hover:border-blue-400 bg-white group">
+            <div onclick="selectSubject('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between items-center cursor-pointer hover:border-blue-400 bg-white group transition-all">
               <span class="font-bold text-sm text-slate-700 group-hover:text-blue-600">${name}</span>
-              <span class="text-slate-400 group-hover:text-blue-600">→</span>
+              <span class="text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-1">→</span>
             </div>
           `).join('');
         })
         .catch(err => {
-          console.error("Connection trace configuration error:", err);
-          showGlobalError("CORS Block or Endpoint offline. Please check your deployment configurations.");
+          console.error("Connection Error Trace:", err);
+          showGlobalError("CORS Block or Endpoint offline. Check script configuration and deployment version logic.");
         });
     }
 
@@ -121,26 +124,31 @@
       document.getElementById('subject-screen').classList.add('hidden');
       document.getElementById('chapter-screen').classList.remove('hidden');
       document.getElementById('chapter-screen-title').innerText = `${subjectName} - Topics`;
-      document.getElementById('chapter-grid').innerHTML = '<div class="p-5 text-center text-slate-400">Loading subject topics...</div>';
+      document.getElementById('chapter-grid').innerHTML = '<div class="space-y-2"><div class="shimmer h-14 w-full"></div><div class="shimmer h-14 w-full"></div></div>';
 
       fetch(`${API_URL}?action=getChapters&sheetName=${encodeURIComponent(subjectName)}`)
         .then(response => response.json())
         .then(chapters => {
+          if (chapters.length === 0) {
+            document.getElementById('chapter-grid').innerHTML = '<div class="p-5 text-center text-slate-400 text-xs">No topics found inside this sheet tab.</div>';
+            return;
+          }
           document.getElementById('chapter-grid').innerHTML = chapters.map(name => `
-            <div onclick="startQuiz('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between cursor-pointer hover:border-blue-400">
-              <span class="font-bold text-sm">${name}</span><span>→</span>
+            <div onclick="startQuiz('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between items-center cursor-pointer hover:border-blue-400 bg-white group transition-all">
+              <span class="font-bold text-sm text-slate-700 group-hover:text-blue-600">${name}</span>
+              <span class="text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-1">→</span>
             </div>
           `).join('');
         })
-        .catch(err => console.error("Error retrieving custom tab contents:", err));
+        .catch(err => console.error("Error retrieving tab headers:", err));
     }
 
     function showGlobalError(msg) {
       document.getElementById('subject-grid').innerHTML = `
-        <div class="p-5 text-center bg-red-50 text-red-600 rounded-xl border border-red-200 text-xs text-left">
+        <div class="p-5 bg-red-50 text-red-600 rounded-2xl border border-red-200 text-xs text-left">
           <p class="font-bold mb-1 text-sm">Deployment Connection Failure</p>
-          <p class="font-mono text-[11px]">${msg}</p>
-          <p class="mt-3 text-slate-400">Make sure you created a NEW version deployment during updating your script configuration.</p>
+          <p class="font-mono bg-white p-3 rounded-xl border border-red-100 my-2 overflow-x-auto">${msg}</p>
+          <p class="mt-3 text-slate-500 leading-relaxed"><strong>How to resolve:</strong> You must create an explicit <strong>New Version</strong> within your Google Apps Script workspace under <em>Deploy > Manage deployments > Edit > Version: New Version</em>, then copy/paste the fresh Web App URL endpoint string into this html project.</p>
         </div>`;
     }
 
@@ -149,7 +157,7 @@
       document.getElementById('chapter-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.remove('hidden');
       document.getElementById('q-text').innerText = "Loading Questions...";
-      document.getElementById('options-grid').innerHTML = '<div class="shimmer mb-2"></div><div class="shimmer"></div>';
+      document.getElementById('options-grid').innerHTML = '<div class="shimmer h-12 mb-2 w-full"></div><div class="shimmer h-12 w-full"></div>';
       document.getElementById('score-correct').innerText = 0;
       document.getElementById('score-wrong').innerText = 0;
       document.getElementById('score-total').innerText = '...';
@@ -169,7 +177,7 @@
             renderOptions(fullQuestions[curIdx]);
           }
         })
-        .catch(err => console.error("Data stream breakdown:", err));
+        .catch(err => console.error("Data tracking stream failure:", err));
     }
 
     function loadCurrentQuestion() {
@@ -183,14 +191,14 @@
       if (fullQuestions[curIdx]) {
         renderOptions(fullQuestions[curIdx]);
       } else {
-        document.getElementById('options-grid').innerHTML = '<div class="shimmer mb-2"></div><div class="shimmer"></div>';
+        document.getElementById('options-grid').innerHTML = '<div class="shimmer h-12 mb-2 w-full"></div><div class="shimmer h-12 w-full"></div>';
         fetch(`${API_URL}?action=getQuestionDetails&sheetName=${encodeURIComponent(selectedSubject)}&rowIdx=${qSummary.rowIdx}`)
           .then(response => response.json())
           .then(details => {
             fullQuestions[curIdx] = details; 
             renderOptions(details);
           })
-          .catch(err => console.error("Error reading entry parameters details:", err));
+          .catch(err => console.error("Error reading target spreadsheet index parameters:", err));
       }
     }
 
@@ -205,7 +213,7 @@
           const letter = String.fromCharCode(65 + i);
           const div = document.createElement('div');
           div.className = 'option-row';
-          div.innerHTML = `<span class="text-sm font-semibold">${val}</span>`;
+          div.innerHTML = `<span class="text-sm font-semibold text-slate-700">${val}</span>`;
           
           if (userAnswers[curIdx]) {
             if (letter === data.Answer) div.classList.add('selected-correct');
@@ -225,7 +233,7 @@
 
     function showExp(text) {
       const box = document.getElementById('explanation-box');
-      box.innerText = text || "No explanation provided.";
+      box.innerText = text || "No explicit explanation available for this question item.";
       box.classList.remove('hidden');
     }
 
