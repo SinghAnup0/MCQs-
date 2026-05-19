@@ -94,25 +94,37 @@
     };
 
     function loadSubjects() {
-      fetch(`${API_URL}?action=getSubjects`)
-        .then(response => response.json())
-        .then(subjects => {
-          if(subjects.error) {
-            showGlobalError(subjects.message || subjects.error);
-            return;
-          }
-          document.getElementById('subject-grid').innerHTML = subjects.map(name => `
-            <div onclick="selectSubject('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between items-center cursor-pointer hover:border-blue-400 bg-white group transition-all">
-              <span class="font-bold text-sm text-slate-700 group-hover:text-blue-600">${name}</span>
-              <span class="text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-1">→</span>
-            </div>
-          `).join('');
-        })
-        .catch(err => {
-          console.error("Connection Error Trace:", err);
-          showGlobalError("CORS Block or Endpoint offline. Check script configuration and deployment version logic.");
-        });
+  // Adding mode: 'no-cors' forces the browser to send the request without pre-validating headers
+  fetch(`${API_URL}?action=getSubjects`, {
+    mode: 'no-cors',
+    method: 'GET'
+  })
+  .then(response => {
+    // Note: with no-cors, response.json() cannot be parsed directly because the response body is opaque.
+    // This allows you to verify if the server is reachable and responsive.
+    console.log("Network handshake confirmed. Server is accessible.");
+    
+    // Fall back to a standard fetch if handshake passes
+    return fetch(`${API_URL}?action=getSubjects`);
+  })
+  .then(response => response.json())
+  .then(subjects => {
+    if(subjects.error) {
+      showGlobalError(subjects.message || subjects.error);
+      return;
     }
+    document.getElementById('subject-grid').innerHTML = subjects.map(name => `
+      <div onclick="selectSubject('${name.replace(/'/g, "\\'")}')" class="bento-card p-5 flex justify-between items-center cursor-pointer hover:border-blue-400 bg-white group transition-all">
+        <span class="font-bold text-sm text-slate-700 group-hover:text-blue-600">${name}</span>
+        <span class="text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-1">→</span>
+      </div>
+    `).join('');
+  })
+  .catch(err => {
+    console.error("Connection Error Trace:", err);
+    showGlobalError("CORS Block or Endpoint offline. Verify the /exec URL suffix.");
+  });
+}
 
     function showSubjectsScreen() {
       document.getElementById('chapter-screen').classList.add('hidden');
